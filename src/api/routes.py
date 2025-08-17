@@ -264,6 +264,199 @@ async def validate_sql_query(query: str):
         raise HTTPException(status_code=500, detail=f"Failed to validate query: {e}")
 
 
+@router.post("/langchain/text-to-sql", response_model=TextToSQLResponse)
+async def convert_text_to_sql_langchain(
+    request: TextToSQLRequest,
+    pipeline=Depends(get_pipeline)
+) -> TextToSQLResponse:
+    """
+    Convert natural language question to SQL using LangChain framework
+    
+    Enhanced features:
+    - Conversation memory (remembers previous questions)
+    - Agent analysis for complex queries
+    - Improved prompt engineering with LangChain templates
+    """
+    start_time = time.time()
+    
+    try:
+        logger.info(f"Converting text to SQL with LangChain: {request.question}")
+        
+        # Use LangChain for SQL generation with context
+        if request.execute_query:
+            pipeline_result = pipeline.generate_sql_with_context(
+                request.question,
+                execute_query=True
+            )
+        else:
+            pipeline_result = pipeline.generate_sql_with_context(
+                request.question,
+                execute_query=False
+            )
+        
+        # Calculate execution time
+        execution_time_ms = (time.time() - start_time) * 1000
+        
+        # Build SQL response with natural language
+        sql_response = SQLResponse(
+            sql_query=pipeline_result.query,
+            confidence_score=pipeline_result.confidence,
+            question_extracted=request.question,
+            execution_time_ms=execution_time_ms,
+            natural_language_response=pipeline_result.metadata.get("natural_language_response") if pipeline_result.metadata else None,
+            explanation=pipeline_result.metadata.get("langchain_explanation") if pipeline_result.metadata else None
+        )
+        
+        # Build query results if executed
+        query_results = None
+        if pipeline_result.execution_result and pipeline_result.execution_result.success:
+            query_results = QueryResult(
+                rows=pipeline_result.execution_result.data,
+                row_count=pipeline_result.execution_result.row_count,
+                columns=list(pipeline_result.execution_result.data[0].keys()) if pipeline_result.execution_result.data else [],
+                execution_time_ms=pipeline_result.execution_result.execution_time
+            )
+        
+        # Get schema info if requested
+        schema_info = None
+        if request.include_schema:
+            try:
+                schema_data = get_schema_info()
+                schema_info = {
+                    "tables": list(schema_data.keys()),
+                    "total_tables": len(schema_data),
+                    "schema_details": schema_data
+                }
+            except Exception as e:
+                logger.warning(f"Could not retrieve schema info: {e}")
+        
+        # Build response with LangChain metadata
+        response = TextToSQLResponse(
+            success=True,  # Add required success field
+            sql=sql_response,
+            results=query_results,
+            schema_info=schema_info,  # Fixed field name
+            error=None,  # Add required error field
+            metadata={
+                "method": "langchain",
+                "conversation_memory": True,
+                "langchain_metadata": pipeline_result.metadata or {}
+            }
+        )
+        
+        logger.info(f"LangChain text-to-SQL conversion completed successfully")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error processing LangChain text-to-SQL request: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process request: {str(e)}")
+
+
+@router.post("/langchain/analyze", response_model=TextToSQLResponse)
+async def analyze_complex_query(
+    request: TextToSQLRequest,
+    pipeline=Depends(get_pipeline)
+) -> TextToSQLResponse:
+    """
+    Analyze complex queries using LangChain agent
+    
+    Features:
+    - Step-by-step query breakdown
+    - Table relationship analysis
+    - Complex join reasoning
+    - Multi-step query planning
+    """
+    start_time = time.time()
+    
+    try:
+        logger.info(f"Analyzing complex query with LangChain agent: {request.question}")
+        
+        # Use LangChain agent for complex analysis
+        pipeline_result = pipeline.analyze_complex_question(
+            request.question,
+            execute_query=request.execute_query
+        )
+        
+        # Calculate execution time
+        execution_time_ms = (time.time() - start_time) * 1000
+        
+        # Build SQL response with natural language
+        sql_response = SQLResponse(
+            sql_query=pipeline_result.query,
+            confidence_score=pipeline_result.confidence,
+            question_extracted=request.question,
+            execution_time_ms=execution_time_ms,
+            natural_language_response=pipeline_result.metadata.get("natural_language_response") if pipeline_result.metadata else None,
+            explanation=pipeline_result.metadata.get("langchain_explanation") if pipeline_result.metadata else None
+        )
+        
+        # Build query results if executed
+        query_results = None
+        if pipeline_result.execution_result and pipeline_result.execution_result.success:
+            query_results = QueryResult(
+                rows=pipeline_result.execution_result.data,
+                row_count=pipeline_result.execution_result.row_count,
+                columns=list(pipeline_result.execution_result.data[0].keys()) if pipeline_result.execution_result.data else [],
+                execution_time_ms=pipeline_result.execution_result.execution_time
+            )
+        
+        # Get schema info if requested
+        schema_info = None
+        if request.include_schema:
+            try:
+                schema_data = get_schema_info()
+                schema_info = {
+                    "tables": list(schema_data.keys()),
+                    "total_tables": len(schema_data),
+                    "schema_details": schema_data
+                }
+            except Exception as e:
+                logger.warning(f"Could not retrieve schema info: {e}")
+        
+        # Build response with agent analysis
+        response = TextToSQLResponse(
+            success=True,  # Add required success field
+            sql=sql_response,
+            results=query_results,
+            schema_info=schema_info,  # Fixed field name
+            error=None,  # Add required error field
+            metadata={
+                "method": "langchain_agent",
+                "agent_analysis": pipeline_result.metadata.get("agent_analysis") if pipeline_result.metadata else None,
+                "langchain_metadata": pipeline_result.metadata or {}
+            }
+        )
+        
+        logger.info(f"LangChain agent analysis completed successfully")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error processing LangChain agent analysis: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to analyze query: {str(e)}")
+
+
+@router.post("/langchain/memory/clear")
+async def clear_conversation_memory(pipeline=Depends(get_pipeline)):
+    """Clear LangChain conversation memory"""
+    try:
+        pipeline.clear_conversation_memory()
+        return {"message": "Conversation memory cleared successfully"}
+    except Exception as e:
+        logger.error(f"Error clearing conversation memory: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to clear memory: {str(e)}")
+
+
+@router.get("/langchain/memory/history")
+async def get_conversation_history(pipeline=Depends(get_pipeline)):
+    """Get current conversation history"""
+    try:
+        history = pipeline.get_conversation_history()
+        return {"conversation_history": history}
+    except Exception as e:
+        logger.error(f"Error getting conversation history: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get history: {str(e)}")
+
+
 # Include router in main app
 def get_router() -> APIRouter:
     """Get the configured API router"""

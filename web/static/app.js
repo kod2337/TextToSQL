@@ -1,8 +1,9 @@
-// Text-to-SQL Assistant Web Interface
+// Text-to-SQL Assistant Web Interface with LangChain Support
 class TextToSQLApp {
     constructor() {
         // Dynamically detect the API base URL
         this.apiBase = window.location.origin;
+        this.conversationHistory = [];
         this.init();
     }
 
@@ -17,6 +18,11 @@ class TextToSQLApp {
         // Generate SQL button
         document.getElementById('generate-sql').addEventListener('click', () => {
             this.generateSQL();
+        });
+        
+        // Clear memory button
+        document.getElementById('clear-memory').addEventListener('click', () => {
+            this.clearConversationMemory();
         });
 
         // Example buttons
@@ -155,7 +161,7 @@ class TextToSQLApp {
         // Show loading state
         const generateBtn = document.getElementById('generate-sql');
         const originalText = generateBtn.innerHTML;
-        generateBtn.innerHTML = '<div class="loading-spinner"></div>Generating...';
+        generateBtn.innerHTML = '<div class="loading-spinner"></div>Thinking...';
         generateBtn.disabled = true;
 
         // Hide previous results
@@ -163,7 +169,10 @@ class TextToSQLApp {
         document.getElementById('error-display').style.display = 'none';
 
         try {
-            const response = await fetch(`${this.apiBase}/api/v1/text-to-sql`, {
+            // Always use LangChain endpoint now
+            const endpoint = `${this.apiBase}/api/v1/langchain/text-to-sql`;
+                
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -179,8 +188,17 @@ class TextToSQLApp {
             const data = await response.json();
             console.log('Response data:', data);
             
-            if (data.success) {
+            if (data.success || data.sql) {
                 this.displayResults(data, executeQuery);
+                
+                // Always add to conversation history since we always use LangChain
+                this.conversationHistory.push({
+                    question: question,
+                    sql: data.sql?.sql_query || '',
+                    natural_response: data.sql?.natural_language_response || '',
+                    timestamp: new Date().toISOString()
+                });
+                this.updateConversationHistory();
             } else {
                 this.showError(data.error || 'Unknown error occurred');
             }
@@ -193,11 +211,92 @@ class TextToSQLApp {
         }
     }
 
-    displayResults(data, executeQuery) {
+    async clearConversationMemory() {
+        try {
+            const response = await fetch(`${this.apiBase}/api/v1/langchain/memory/clear`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                this.conversationHistory = [];
+                this.updateConversationHistory();
+                this.showSuccess('Conversation memory cleared');
+            } else {
+                this.showError('Failed to clear memory');
+            }
+        } catch (error) {
+            this.showError(`Error clearing memory: ${error.message}`);
+        }
+    }
+
+    updateConversationHistory() {
+        const historyDiv = document.getElementById('conversation-history');
+        
+        if (this.conversationHistory.length === 0) {
+            historyDiv.innerHTML = '<div class="text-gray-400 text-sm">No conversation history</div>';
+            return;
+        }
+
+        const html = this.conversationHistory.slice(-5).map((item, index) => `
+            <div class="mb-3 p-3 bg-gray-800 bg-opacity-50 rounded-lg">
+                <div class="text-sm text-gray-400 mb-1">${new Date(item.timestamp).toLocaleTimeString()}</div>
+                <div class="text-white font-medium mb-2">${item.question}</div>
+                ${item.natural_response ? `
+                    <div class="text-blue-200 text-sm mb-2 bg-blue-900 bg-opacity-30 p-2 rounded">
+                        <i class="fas fa-comment-dots mr-1"></i> ${item.natural_response.substring(0, 150)}${item.natural_response.length > 150 ? '...' : ''}
+                    </div>
+                ` : ''}
+                <div class="text-gray-300 text-xs font-mono bg-gray-900 p-2 rounded">
+                    ${item.sql || 'No SQL generated'}
+                </div>
+                ${item.analysis ? `
+                    <div class="mt-2 text-gray-400 text-xs">
+                        <strong>Analysis:</strong> ${item.analysis.substring(0, 100)}...
+                    </div>
+                ` : ''}
+            </div>
+        `).join('');
+        
+        historyDiv.innerHTML = html;
+    }
+
+    showSuccess(message) {
+        const successDiv = document.getElementById('success-display') || this.createSuccessDisplay();
+        successDiv.textContent = message;
+        successDiv.style.display = 'block';
+        
+        setTimeout(() => {
+            successDiv.style.display = 'none';
+        }, 3000);
+    }
+
+    createSuccessDisplay() {
+        const div = document.createElement('div');
+        div.id = 'success-display';
+        div.className = 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4';
+        div.style.display = 'none';
+        
+        const resultsSection = document.getElementById('results-section');
+        resultsSection.parentNode.insertBefore(div, resultsSection);
+        
+        return div;
+    }
+
+    displayResults(data, executeQuery, showAnalysis = false) {
         const resultsSection = document.getElementById('results-section');
         const sqlElement = document.getElementById('generated-sql');
         const metadataElement = document.getElementById('sql-metadata');
         const confidenceBadge = document.getElementById('confidence-badge');
+        const naturalResponseSection = document.getElementById('natural-response-section');
+        const naturalResponseContent = document.getElementById('natural-response-content');
+        
+        // Show natural language response if available
+        if (data.sql.natural_language_response) {
+            naturalResponseContent.textContent = data.sql.natural_language_response;
+            naturalResponseSection.style.display = 'block';
+        } else {
+            naturalResponseSection.style.display = 'none';
+        }
         
         // Display SQL
         sqlElement.textContent = data.sql.sql_query;
@@ -219,9 +318,15 @@ class TextToSQLApp {
                     <span class="text-white">${data.sql.execution_time_ms?.toFixed(2) || 0}ms</span>
                 </div>
                 <div>
-                    <span class="text-gray-400">Question:</span>
-                    <span class="text-white">${data.sql.question_extracted || 'N/A'}</span>
+                    <span class="text-gray-400">Method:</span>
+                    <span class="text-white">LangChain AI</span>
                 </div>
+                ${data.sql.explanation ? `
+                <div class="col-span-2">
+                    <span class="text-gray-400">Technical Explanation:</span>
+                    <div class="text-white text-sm mt-1">${data.sql.explanation}</div>
+                </div>
+                ` : ''}
             </div>
         `;
         

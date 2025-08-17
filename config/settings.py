@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # LLM settings
     llm_model_name: str = "microsoft/DialoGPT-medium"  # Default model
     groq_api_key: Optional[str] = None
-    groq_model: str = "llama3-70b-8192"  # Default Groq model
+    groq_model: str = "llama-3.3-70b-versatile"  # Updated to supported production model
     max_tokens: int = 512
     temperature: float = 0.7
     

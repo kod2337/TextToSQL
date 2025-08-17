@@ -150,24 +150,58 @@
                             </label>
                         </div>
                         
+                        <!-- LangChain Controls -->
+                        <div id="langchain-controls" class="space-y-3 p-4 bg-purple-900 bg-opacity-30 rounded-lg border border-purple-500">
+                            <div class="flex items-center text-white mb-2">
+                                <i class="fas fa-brain mr-2 text-purple-400"></i>
+                                <span class="font-semibold">AI Features</span>
+                                <span class="ml-2 text-xs bg-purple-600 px-2 py-1 rounded-full">LangChain Powered</span>
+                            </div>
+                            <div class="flex justify-center">
+                                <button 
+                                    id="clear-memory" 
+                                    class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300"
+                                >
+                                    <i class="fas fa-eraser mr-2"></i>
+                                    Clear Conversation
+                                </button>
+                            </div>
+                            <div class="text-xs text-gray-300">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                AI remembers conversation context and provides natural language responses
+                            </div>
+                        </div>
+                        
                         <button 
                             id="generate-sql" 
-                            class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+                            class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-xl text-lg"
                         >
-                            <i class="fas fa-wand-magic-sparkles mr-2"></i>
-                            Generate SQL
+                            <i class="fas fa-brain mr-2"></i>
+                            Ask AI Assistant
+                            <div class="text-xs font-normal mt-1 opacity-80">Powered by LangChain</div>
                         </button>
                     </div>
                 </div>
 
                 <!-- Results Section -->
                 <div id="results-section" class="space-y-6" style="display: none;">
+                    <!-- Natural Language Response -->
+                    <div id="natural-response-section" class="glass-effect rounded-lg shadow-xl p-6 fade-in" style="display: none;">
+                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                            <i class="fas fa-comment-dots mr-3 text-blue-300"></i>
+                            AI Response
+                            <span class="ml-2 text-xs bg-blue-600 px-2 py-1 rounded-full">Natural Language</span>
+                        </h3>
+                        <div id="natural-response-content" class="text-gray-200 leading-relaxed"></div>
+                    </div>
+
                     <!-- Generated SQL -->
                     <div class="glass-effect rounded-lg shadow-xl p-6 fade-in">
                         <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
                             <i class="fas fa-code mr-3 text-green-300"></i>
-                            Generated SQL
+                            SQL Query Used
                             <span id="confidence-badge" class="ml-auto text-xs px-2 py-1 rounded-full"></span>
+                            <span class="ml-2 text-xs bg-gray-600 px-2 py-1 rounded-full">Technical</span>
                         </h3>
                         <div class="relative">
                             <pre><code id="generated-sql" class="language-sql"></code></pre>
@@ -222,6 +256,22 @@
                     </h3>
                     <div id="quick-stats" class="space-y-3 text-sm">
                         <div class="text-gray-300">Loading statistics...</div>
+                    </div>
+                </div>
+
+                <!-- Conversation History (LangChain) -->
+                <div id="conversation-panel" class="glass-effect rounded-lg shadow-xl p-6 mt-6 fade-in">
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                        <i class="fas fa-comments mr-3 text-purple-300"></i>
+                        Conversation History
+                        <span class="ml-2 text-xs bg-purple-600 px-2 py-1 rounded-full">LangChain</span>
+                    </h3>
+                    <div id="conversation-history" class="space-y-3 text-sm max-h-64 overflow-y-auto">
+                        <div class="text-gray-400 text-sm">No conversation history</div>
+                    </div>
+                    <div class="mt-3 text-xs text-gray-400">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Recent questions are remembered for context
                     </div>
                 </div>
             </div>

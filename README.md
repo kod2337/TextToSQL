@@ -1,6 +1,6 @@
 # 🧠 Text-to-SQL Assistant
 
-A natural language AI assistant that converts user questions into **SQL queries** and executes them on a relational database.
+A natural language AI assistant powered by **LangChain** and **Groq** that converts user questions into **SQL queries** and executes them on a relational database with intelligent, conversational responses.
 
 ## 🚀 Quick Start
 
@@ -56,7 +56,11 @@ Once the application is running, visit:
 
 ### Key Endpoints
 
-- `POST /api/text-to-sql` - Convert natural language to SQL
+- `POST /api/v1/text-to-sql` - Convert natural language to SQL (Legacy)
+- `POST /api/v1/langchain/text-to-sql` - LangChain-powered SQL generation with natural responses
+- `POST /api/v1/langchain/analyze` - Advanced query analysis
+- `GET /api/v1/langchain/memory/history` - Get conversation history
+- `DELETE /api/v1/langchain/memory/clear` - Clear conversation memory
 - `GET /api/health` - Application health check
 - `GET /api/schema` - Get database schema information
 - `POST /api/sql/validate` - Validate SQL queries
@@ -114,11 +118,16 @@ flake8 src/ tests/
 ```python
 import requests
 
-response = requests.post("http://localhost:8001/api/text-to-sql", json={
-    "question": "Show me all customers from New York"
+# Using the enhanced LangChain endpoint
+response = requests.post("http://localhost:8001/api/v1/langchain/text-to-sql", json={
+    "question": "Show me all customers from New York",
+    "execute_query": True,
+    "include_schema": True
 })
 
-print(response.json())
+result = response.json()
+print("SQL:", result['sql']['sql_query'])
+print("Answer:", result['sql']['natural_language_response'])
 ```
 
 ## 🎯 Project Status
@@ -140,28 +149,43 @@ print(response.json())
 ## 🌟 Key Features Implemented
 
 ### 🔧 **Core Functionality**
-- Natural language to SQL conversion using OpenAI GPT models
-- PostgreSQL database integration with Supabase
-- Safe query execution with validation and sanitization
-- Comprehensive error handling and logging
+- **LangChain Framework Integration** - Advanced text-to-SQL conversion with memory and context
+- **Groq LLM Integration** - Fast, efficient language model processing (llama-3.3-70b-versatile)
+- **Natural Language Responses** - Conversational AI responses based on actual query results
+- **PostgreSQL Database Integration** with Supabase cloud hosting
+- **Safe Query Execution** with validation and sanitization
+- **Conversation Memory** - Context-aware multi-turn conversations
+- **Comprehensive Error Handling** and logging
 
 ### 🌐 **REST API (FastAPI)**
-- RESTful endpoints with automatic OpenAPI documentation
-- Request/response validation using Pydantic models
-- CORS support for cross-origin requests
-- Health monitoring and status endpoints
+- **Dual API Support** - Both legacy and LangChain-powered endpoints
+- **RESTful Endpoints** with automatic OpenAPI documentation
+- **Request/Response Validation** using Pydantic models
+- **CORS Support** for cross-origin requests
+- **Health Monitoring** and status endpoints
+- **Conversation Memory Management** APIs
 
 ### 💻 **Web Interface**
-- Modern, responsive web UI with Tailwind CSS
-- Interactive query builder with real-time feedback
-- SQL syntax highlighting and formatting
-- Schema exploration and table browsing
+- **Streamlined Single-Button Interface** - "Ask AI Assistant" powered by LangChain
+- **Modern, Responsive Design** with Tailwind CSS and Font Awesome icons
+- **Real-time SQL Generation** with natural language explanations
+- **SQL Syntax Highlighting** and formatting
+- **Schema Exploration** and table browsing
+- **Conversation History** tracking and display
 
 ### 🛡️ **Security & Safety**
-- SQL injection prevention through parameterized queries
-- Query validation before execution
-- Environment-based configuration management
-- Comprehensive error handling without data exposure
+- **SQL Injection Prevention** through parameterized queries and LangChain validation
+- **Query Safety Checks** before execution
+- **Environment-based Configuration** management
+- **Comprehensive Error Handling** without data exposure
+- **Natural Error Messages** - User-friendly responses instead of technical errors
+
+### 🧠 **AI & Language Processing**
+- **LangChain Framework** - Professional-grade LLM application framework
+- **Groq Integration** - High-performance language model inference
+- **Context-Aware Prompting** - Schema-informed SQL generation
+- **Conversational Memory** - Multi-turn conversation support
+- **Natural Language Explanations** - Business-friendly result interpretation
 
 ## 📝 License
 

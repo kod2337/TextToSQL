@@ -12,13 +12,17 @@ class TextToSQLRequest(BaseModel):
     question: str = Field(..., description="Natural language question to convert to SQL")
     execute_query: bool = Field(default=False, description="Whether to execute the generated SQL query")
     include_schema: bool = Field(default=True, description="Whether to include schema information in the response")
+    use_langchain: bool = Field(default=True, description="Whether to use LangChain framework")
+    use_agent: bool = Field(default=False, description="Whether to use LangChain agent for complex analysis")
     
     class Config:
         json_schema_extra = {
             "example": {
                 "question": "Show me all customers from New York",
                 "execute_query": True,
-                "include_schema": False
+                "include_schema": False,
+                "use_langchain": True,
+                "use_agent": False
             }
         }
 
@@ -29,6 +33,8 @@ class SQLResponse(BaseModel):
     confidence_score: Optional[float] = Field(None, description="AI confidence score (0-100)")
     question_extracted: Optional[str] = Field(None, description="Extracted question from input")
     execution_time_ms: Optional[float] = Field(None, description="Query execution time in milliseconds")
+    natural_language_response: Optional[str] = Field(None, description="Natural language explanation of results")
+    explanation: Optional[str] = Field(None, description="Technical explanation of the SQL query")
     
     class Config:
         json_schema_extra = {
@@ -69,6 +75,7 @@ class TextToSQLResponse(BaseModel):
     results: Optional[QueryResult] = Field(None, description="Query execution results (if executed)")
     error: Optional[str] = Field(None, description="Error message if request failed")
     schema_info: Optional[Dict[str, Any]] = Field(None, description="Database schema information")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata about the request processing")
     
     class Config:
         json_schema_extra = {

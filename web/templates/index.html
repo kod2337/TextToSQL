@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text-to-SQL Assistant</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .sql-result-table {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .status-healthy { background-color: #10b981; }
+        .status-degraded { background-color: #f59e0b; }
+        .status-error { background-color: #ef4444; }
+    </style>
+</head>
+<body class="min-h-screen gradient-bg">
+    <!-- Header -->
+    <header class="glass-effect shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-database text-white text-2xl"></i>
+                    <h1 class="text-2xl font-bold text-white">Text-to-SQL Assistant</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="status-indicator" class="text-white text-sm">
+                        <span class="status-dot status-error"></span>
+                        <span id="status-text">Checking...</span>
+                    </div>
+                    <button id="refresh-status" class="text-white hover:text-gray-300">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- Introduction Card -->
+        <div class="glass-effect rounded-lg shadow-xl p-6 mb-8 text-white fade-in">
+            <h2 class="text-xl font-semibold mb-3 flex items-center">
+                <i class="fas fa-magic mr-3 text-yellow-300"></i>
+                Transform Natural Language into SQL
+            </h2>
+            <p class="text-gray-200 mb-4">
+                Ask questions in plain English and watch them become powerful SQL queries. 
+                Our AI understands your database schema and generates safe, optimized SQL code.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div class="flex items-center">
+                    <i class="fas fa-shield-alt mr-2 text-green-400"></i>
+                    <span>SQL Injection Protected</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-bolt mr-2 text-yellow-400"></i>
+                    <span>Real-time Execution</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-brain mr-2 text-purple-400"></i>
+                    <span>AI-Powered by Groq</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Interface -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Column: Input and Controls -->
+            <div class="lg:col-span-2">
+                <!-- Question Input -->
+                <div class="glass-effect rounded-lg shadow-xl p-6 mb-6 fade-in">
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                        <i class="fas fa-comment-dots mr-3 text-blue-300"></i>
+                        Ask Your Question
+                    </h3>
+                    
+                    <div class="space-y-4">
+                        <textarea 
+                            id="question-input" 
+                            placeholder="Example: Show me all customers from New York who placed orders in the last month"
+                            class="w-full p-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            rows="4"
+                        ></textarea>
+                        
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <button class="example-btn bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded-full text-sm transition-colors">
+                                Show me all customers
+                            </button>
+                            <button class="example-btn bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1 rounded-full text-sm transition-colors">
+                                How many orders were placed last month?
+                            </button>
+                            <button class="example-btn bg-purple-100 hover:bg-purple-200 text-purple-800 px-3 py-1 rounded-full text-sm transition-colors">
+                                Top 5 customers by total spending
+                            </button>
+                            <button class="example-btn bg-orange-100 hover:bg-orange-200 text-orange-800 px-3 py-1 rounded-full text-sm transition-colors">
+                                Products that haven't been ordered
+                            </button>
+                        </div>
+                        
+                        <div class="flex items-center space-x-4">
+                            <label class="flex items-center text-white">
+                                <input type="checkbox" id="execute-query" class="mr-2 rounded">
+                                <span>Execute query and show results</span>
+                            </label>
+                            <label class="flex items-center text-white">
+                                <input type="checkbox" id="include-schema" checked class="mr-2 rounded">
+                                <span>Include schema info</span>
+                            </label>
+                        </div>
+                        
+                        <button 
+                            id="generate-sql" 
+                            class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+                        >
+                            <i class="fas fa-wand-magic-sparkles mr-2"></i>
+                            Generate SQL
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div id="results-section" class="space-y-6" style="display: none;">
+                    <!-- Generated SQL -->
+                    <div class="glass-effect rounded-lg shadow-xl p-6 fade-in">
+                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                            <i class="fas fa-code mr-3 text-green-300"></i>
+                            Generated SQL
+                            <span id="confidence-badge" class="ml-auto text-xs px-2 py-1 rounded-full"></span>
+                        </h3>
+                        <div class="relative">
+                            <pre><code id="generated-sql" class="language-sql"></code></pre>
+                            <button id="copy-sql" class="absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
+                                <i class="fas fa-copy mr-1"></i>Copy
+                            </button>
+                        </div>
+                        <div id="sql-metadata" class="mt-4 text-sm text-gray-300"></div>
+                    </div>
+
+                    <!-- Query Results -->
+                    <div id="query-results" class="glass-effect rounded-lg shadow-xl p-6 fade-in" style="display: none;">
+                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                            <i class="fas fa-table mr-3 text-yellow-300"></i>
+                            Query Results
+                            <span id="results-badge" class="ml-auto text-xs px-2 py-1 rounded-full bg-blue-600 text-white"></span>
+                        </h3>
+                        <div id="results-content"></div>
+                    </div>
+
+                    <!-- Error Display -->
+                    <div id="error-display" class="glass-effect rounded-lg shadow-xl p-6 fade-in bg-red-900 bg-opacity-50" style="display: none;">
+                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                            <i class="fas fa-exclamation-triangle mr-3 text-red-300"></i>
+                            Error
+                        </h3>
+                        <div id="error-content" class="text-red-200"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Database Schema -->
+            <div class="lg:col-span-1">
+                <div class="glass-effect rounded-lg shadow-xl p-6 fade-in">
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                        <i class="fas fa-sitemap mr-3 text-cyan-300"></i>
+                        Database Schema
+                        <button id="refresh-schema" class="ml-auto text-white hover:text-gray-300">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </h3>
+                    <div id="schema-content" class="text-sm">
+                        <div class="text-gray-300">Loading schema...</div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="glass-effect rounded-lg shadow-xl p-6 mt-6 fade-in">
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                        <i class="fas fa-chart-line mr-3 text-pink-300"></i>
+                        Quick Stats
+                    </h3>
+                    <div id="quick-stats" class="space-y-3 text-sm">
+                        <div class="text-gray-300">Loading statistics...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="glass-effect mt-12">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between text-white text-sm">
+                <div>
+                    <span>Text-to-SQL Assistant v1.0.0</span>
+                    <span class="ml-4">Powered by Groq AI & Supabase</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/docs" target="_blank" class="hover:text-gray-300">
+                        <i class="fas fa-book mr-1"></i>API Docs
+                    </a>
+                    <a href="/health" target="_blank" class="hover:text-gray-300">
+                        <i class="fas fa-heartbeat mr-1"></i>Health
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
